@@ -42,7 +42,7 @@ jobs:
           tar -cf /tmp/caravel.tar -C $CARAVEL_ROOT .
 
       - name: Upload Caravel Tarball
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: caravel-tarball
           path: /tmp/caravel.tar
