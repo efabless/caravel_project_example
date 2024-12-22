@@ -260,7 +260,7 @@ run-precheck: check-pdk check-precheck enable-lvs-pdk
 		-e PDK_ROOT=$(PDK_ROOT) \
 		-e PDKPATH=$(PDKPATH) \
 		-u $(shell id -u $(USER)):$(shell id -g $(USER)) \
-		efabless/mpw_precheck:latest bash -c "cd $(PRECHECK_ROOT) ; python3 mpw_precheck.py --input_directory $(INPUT_DIRECTORY) --pdk_path $(PDK_ROOT)/$(PDK) license makefile default documentation consistency gpio_defines xor magic_drc klayout_feol klayout_beol klayout_offgrid klayout_met_min_ca_density klayout_pin_label_purposes_overlapping_drawing klayout_zeroarea"; \
+		efabless/mpw_precheck:latest bash -c "cd $(PRECHECK_ROOT) ; python3 mpw_precheck.py --input_directory $(INPUT_DIRECTORY) --pdk_path $(PDK_ROOT)/$(PDK) --skip_checks LVS"; \
 	else \
 		$(eval INPUT_DIRECTORY := $(shell pwd)) \
 		cd $(PRECHECK_ROOT) && \
@@ -290,6 +290,55 @@ $(LVS_BLOCKS): lvs-% : ./lvs/%/lvs_config.json check-pdk check-precheck
 	-v $(PDK_ROOT):$(PDK_ROOT) \
 	-u $(shell id -u $(USER)):$(shell id -g $(USER)) \
 	efabless/mpw_precheck:latest bash -c "export PYTHONPATH=$(PRECHECK_ROOT) ; cd $(PRECHECK_ROOT) ; python3 checks/lvs_check/lvs.py --pdk_path $(PDK_ROOT)/$(PDK) --design_directory $(INPUT_DIRECTORY) --output_directory $(INPUT_DIRECTORY)/lvs --design_name $* --config_file $(INPUT_DIRECTORY)/lvs/$*/lvs_config.json"
+
+.PHONY: run-oeb
+run-oeb: check-pdk check-precheck
+	@$(eval INPUT_DIRECTORY := $(shell pwd))
+	@cd $(PRECHECK_ROOT) && \
+	docker run -it -v $(PRECHECK_ROOT):$(PRECHECK_ROOT) \
+	-v $(INPUT_DIRECTORY):$(INPUT_DIRECTORY) \
+	-v $(PDK_ROOT):$(PDK_ROOT) \
+	-v $(HOME)/.ipm:$(HOME)/.ipm \
+	-e INPUT_DIRECTORY=$(INPUT_DIRECTORY) \
+	-e PDK_PATH=$(PDK_ROOT)/$(PDK) \
+	-e PDK_ROOT=$(PDK_ROOT) \
+	-e PDKPATH=$(PDKPATH) \
+	-u $(shell id -u $(USER)):$(shell id -g $(USER)) \
+	efabless/mpw_precheck:latest bash -c "cd $(PRECHECK_ROOT) ; python3 mpw_precheck.py --input_directory $(INPUT_DIRECTORY) --pdk_path $(PDK_ROOT)/$(PDK) OEB";
+
+# Define individual drc-<block> targets
+BLOCKS = $(shell cd gds && find *.gds -maxdepth 0 -type f | sed 's/.gds//')
+DRC_BLOCKS = $(foreach block, $(BLOCKS), drc-$(block))
+$(DRC_BLOCKS): drc-% : gds/%.gds check-pdk check-precheck
+	@mkdir -p drc/logs
+	@$(eval INPUT_DIRECTORY := $(shell pwd))
+	@echo "Running DRC check for $*..."
+	@cd $(PRECHECK_ROOT) && \
+	docker run -v $(PRECHECK_ROOT):$(PRECHECK_ROOT) \
+	-v $(INPUT_DIRECTORY):$(INPUT_DIRECTORY) \
+	-v $(PDK_ROOT):$(PDK_ROOT) \
+	-u $(shell id -u $(USER)):$(shell id -g $(USER)) \
+	efabless/mpw_precheck:latest bash -c "export PYTHONPATH=$(PRECHECK_ROOT) ; cd $(PRECHECK_ROOT) ; python3 checks/drc_checks/klayout/klayout_gds_drc_check.py --pdk $(PDK) --gds_input_file_path $(INPUT_DIRECTORY)/gds/$*.gds --output_directory $(INPUT_DIRECTORY)/drc --feol --beol --off_grid"
+
+.PHONY: run-checks
+run-checks: check-pdk check-precheck
+	@if [ -z "$(CHECKS)" ]; then \
+		echo "Error: No checks specified. Please provide a list of checks using 'make run-checks CHECKS=\"check1 check2\"'."; \
+		exit 1; \
+	fi
+	@$(eval INPUT_DIRECTORY := $(shell pwd))
+	@echo "Running precheck with checks: $(CHECKS)..."
+	@cd $(PRECHECK_ROOT) && \
+	docker run -it -v $(PRECHECK_ROOT):$(PRECHECK_ROOT) \
+	-v $(INPUT_DIRECTORY):$(INPUT_DIRECTORY) \
+	-v $(PDK_ROOT):$(PDK_ROOT) \
+	-v $(HOME)/.ipm:$(HOME)/.ipm \
+	-e INPUT_DIRECTORY=$(INPUT_DIRECTORY) \
+	-e PDK_PATH=$(PDK_ROOT)/$(PDK) \
+	-e PDK_ROOT=$(PDK_ROOT) \
+	-e PDKPATH=$(PDKPATH) \
+	-u $(shell id -u $(USER)):$(shell id -g $(USER)) \
+	efabless/mpw_precheck:latest bash -c "cd $(PRECHECK_ROOT) ; python3 mpw_precheck.py --input_directory $(INPUT_DIRECTORY) --pdk_path $(PDK_ROOT)/$(PDK) $(CHECKS)"
 
 .PHONY: clean
 clean:
