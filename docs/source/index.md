@@ -294,6 +294,26 @@ make caravel-sta
 
 A summary of timing results is provided at the end.
 
+## Running standalone checks
+
+To run the DRC (Design Rule Check) for a specific macro, use the target:
+
+```bash
+make drc-<macro_name>
+```
+
+Replace <macro_name> with the name of the macro you want to check. For example, if your macro is named `user_project_wrapper`, you can run:
+
+```bash
+make drc-user_project_wrapper
+```
+
+The OEB (Output Enable Bar) check ensures proper GPIO output configurations. To run the OEB check, use:
+
+```bash
+make run-oeb
+```
+
 ## Checklist for Shuttle Submission
 
 - ✔️ The project repo follows the directory structure in this repo.
