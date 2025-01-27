@@ -90,12 +90,11 @@ ifeq ($(PDK),gf180mcuC)
 endif
 
 # Include Caravel Makefile Targets
-.PHONY: % : check-caravel
-%:
-	export CARAVEL_ROOT=$(CARAVEL_ROOT) && export MPW_TAG=$(MPW_TAG) && $(MAKE) -f $(CARAVEL_ROOT)/Makefile $@
+make_caravel_%: install_caravel
+	echo "Running rule for $@"
+	CARAVEL_ROOT=$(CARAVEL_ROOT) MPW_TAG=$(MPW_TAG) $(MAKE) -f $(CARAVEL_ROOT)/Makefile $(@:make_caravel_%=%)
 
-.PHONY: install
-install:
+install_caravel:
 	if [ -d "$(CARAVEL_ROOT)" ]; then\
 		echo "Deleting exisiting $(CARAVEL_ROOT)" && \
 		rm -rf $(CARAVEL_ROOT) && sleep 2;\
@@ -114,7 +113,7 @@ simenv-cocotb:
 	docker pull efabless/dv:cocotb
 
 .PHONY: setup
-setup: check_dependencies install check-env install_mcw openlane pdk-with-volare setup-timing-scripts setup-cocotb precheck
+setup: check_dependencies install_caravel make_caravel_check-env make_caravel_install_mcw openlane make_caravel_pdk-with-volare setup-timing-scripts setup-cocotb precheck
 
 # Openlane
 blocks=$(shell cd openlane && find * -maxdepth 0 -type d)
@@ -209,7 +208,7 @@ openlane:
 
 # Create symbolic links to caravel's main files
 .PHONY: simlink
-simlink: check-caravel
+simlink:
 ### Symbolic links relative path to $CARAVEL_ROOT
 	$(eval MAKEFILE_PATH := $(shell realpath --relative-to=openlane $(CARAVEL_ROOT)/openlane/Makefile))
 	$(eval PIN_CFG_PATH  := $(shell realpath --relative-to=openlane/user_project_wrapper $(CARAVEL_ROOT)/openlane/user_project_wrapper_empty/pin_order.cfg))
